@@ -1,7 +1,4 @@
 import { create } from 'zustand'
-import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
-
-const ACCESS_TOKEN = 'thisisjustarandomstring'
 
 interface AuthUser {
   accountNo: string
@@ -21,33 +18,30 @@ interface AuthState {
   }
 }
 
+// Automatically authenticated session for MVP
+const DUMMY_USER: AuthUser = {
+  accountNo: 'C3OPS-001',
+  email: 'ops-admin@cable3.io',
+  role: ['admin'],
+  exp: 2600000000, // Year 2052
+}
+
 export const useAuthStore = create<AuthState>()((set) => {
-  const cookieState = getCookie(ACCESS_TOKEN)
-  const initToken = cookieState ? JSON.parse(cookieState) : ''
   return {
     auth: {
-      user: null,
+      user: DUMMY_USER,
       setUser: (user) =>
         set((state) => ({ ...state, auth: { ...state.auth, user } })),
-      accessToken: initToken,
+      accessToken: 'cable3-ops-mvp-session-token',
       setAccessToken: (accessToken) =>
-        set((state) => {
-          setCookie(ACCESS_TOKEN, JSON.stringify(accessToken))
-          return { ...state, auth: { ...state.auth, accessToken } }
-        }),
+        set((state) => ({ ...state, auth: { ...state.auth, accessToken } })),
       resetAccessToken: () =>
-        set((state) => {
-          removeCookie(ACCESS_TOKEN)
-          return { ...state, auth: { ...state.auth, accessToken: '' } }
-        }),
+        set((state) => ({ ...state, auth: { ...state.auth, accessToken: '' } })),
       reset: () =>
-        set((state) => {
-          removeCookie(ACCESS_TOKEN)
-          return {
-            ...state,
-            auth: { ...state.auth, user: null, accessToken: '' },
-          }
-        }),
+        set((state) => ({
+          ...state,
+          auth: { ...state.auth, user: DUMMY_USER, accessToken: 'cable3-ops-mvp-session-token' },
+        })),
     },
   }
 })
