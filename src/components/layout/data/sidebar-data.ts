@@ -1,9 +1,10 @@
 import {
   LayoutDashboard,
-  Server,
+  Cloud,
   Activity,
   MessagesSquare,
   Settings,
+  Search,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -30,9 +31,14 @@ export const sidebarData: SidebarData = {
           icon: LayoutDashboard,
         },
         {
-          title: 'Services',
+          title: 'Traces',
+          url: '/traces',
+          icon: Search,
+        },
+        {
+          title: 'Bedrock Usage',
           url: '/services',
-          icon: Server,
+          icon: Cloud,
         },
         {
           title: 'Investigations',

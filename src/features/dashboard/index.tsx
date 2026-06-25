@@ -1,299 +1,191 @@
-import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import { useServices } from '@/hooks/use-services'
-import { useInvestigations } from '@/hooks/use-investigations'
-import { TerminalInput } from '@/components/terminal/TerminalInput'
+import { useState } from 'react'
+import { useTraces, useTraceDetail } from '@/hooks/use-traces'
+import { useLLMDashboard } from '@/hooks/use-dashboard'
 import { TerminalPanel } from '@/components/terminal/TerminalPanel'
-import { TerminalChart } from '@/components/terminal/TerminalChart'
-import { LogViewer } from '@/components/terminal/LogViewer'
-import { TraceViewer } from '@/components/terminal/TraceViewer'
-import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Eye, Terminal } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Search, Terminal, Play, AlertTriangle, ExternalLink, LayoutDashboard, Brain, BarChart3 } from 'lucide-react'
 
 export function Dashboard() {
-  const navigate = useNavigate()
-  const { services } = useServices()
-  const { investigations, isLoading: loadingInvestigations } = useInvestigations()
+  const [query, setQuery] = useState('service:*')
+  const [timeRange, setTimeRange] = useState('now-1h')
+  const [selectedTraceId, setSelectedTraceId] = useState('')
 
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([])
-  const consoleEndRef = useRef<HTMLDivElement>(null)
+  const { data: tracesData, isLoading: tracesLoading } = useTraces(query, timeRange)
+  const { data: traceDetail } = useTraceDetail(selectedTraceId)
+  const { data: dashboard, isLoading: dashLoading, isError: dashError } = useLLMDashboard()
 
-  // Auto-scroll console output to bottom
-  useEffect(() => {
-    consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [consoleOutput])
-
-  // CPU & Memory metric states
-  const [cpuData, setCpuData] = useState<number[]>([45, 52, 58, 62, 55, 48, 67, 85, 78, 83, 89, 92])
-  const [memData, setMemData] = useState<number[]>([68, 68, 69, 70, 71, 70, 72, 74, 75, 74, 75, 76])
-
-  // Fetch real metrics from Datadog MCP
-  const { data: metricsData } = useQuery({
-    queryKey: ['system_metrics'],
-    queryFn: async () => {
-      const resp = await api.get('/test/metrics')
-      return resp.data
-    },
-    refetchInterval: 5000,
-  })
-
-  // Sync state with fetched metrics
-  useEffect(() => {
-    if (metricsData) {
-      setCpuData(metricsData.cpu)
-      setMemData(metricsData.memory)
-    }
-  }, [metricsData])
-
-  // Boot sequence simulation on mount
-  useEffect(() => {
-    const bootLines = [
-      'SYSBOOT // Initializing AIOps Engine v2.1...',
-      'SYSBOOT // Loading local telemetry modules...',
-      'SYSBOOT // Establishing database connection pool: ACTIVE',
-      'SYSBOOT // Ingesting telemetry metrics stream... SUCCESS',
-      'SYSBOOT // AI Agents mapping system dependency tree... DONE',
-      'READY // Safe SRE terminal session initialized.',
-      'READY // Type /help to see all operational commands.'
-    ]
-
-    let currentLine = 0
-    const timer = setInterval(() => {
-      if (currentLine < bootLines.length) {
-        setConsoleOutput(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${bootLines[currentLine]}`])
-        currentLine++
-      } else {
-        clearInterval(timer)
-      }
-    }, 400)
-
-    return () => clearInterval(timer)
-  }, [])
-
-  // Command Interpreter
-  const handleCommand = (cmd: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setConsoleOutput(prev => [...prev, `\n> ${cmd}`])
-
-    const args = cmd.split(' ')
-    const primaryCmd = args[0].toLowerCase()
-
-    switch (primaryCmd) {
-      case '/help':
-        setConsoleOutput(prev => [
-          ...prev,
-          'AIOps Terminal Help Console:',
-          '  /health       - Print full system telemetry states',
-          '  /incidents     - List active incident RCAs',
-          '  /logs         - Print log stream tail description',
-          '  /metrics      - Report CPU/memory load vectors',
-          '  /investigate  - Start a new root cause analysis',
-          '  /deploy       - View active environment topologies',
-          '  /clear        - Clear console buffer logs'
-        ])
-        break
-
-      case '/clear':
-        setConsoleOutput([])
-        break
-
-      case '/health':
-        const degradedCount = services.filter(s => s.status !== 'operational').length
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] TELEMETRY HEALTH STATUS:`,
-          `  Total services monitored: ${services.length}`,
-          `  Degraded services: ${degradedCount}`,
-          `  Status: ${degradedCount > 0 ? 'WARNING (Telemetry alerts triggered)' : 'HEALTHY (All systems green)'}`
-        ])
-        break
-
-      case '/incidents':
-        const active = investigations.filter(i => i.status !== 'resolved' && i.status !== 'closed')
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] ACTIVE INCIDENT RCAs (${active.length}):`,
-          ...active.map(i => `  - INC-${i.id.slice(0,8)}: ${i.title} [Status: ${i.status}]`)
-        ])
-        break
-
-      case '/logs':
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] Tail stream active. Live monitor displaying in log panel below.`
-        ])
-        break
-
-      case '/metrics':
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] METRICS REPORT:`,
-          `  Current CPU Load: ${cpuData[cpuData.length - 1]}%`,
-          `  Current Memory Allocation: ${memData[memData.length - 1]}%`
-        ])
-        break
-
-      case '/investigate':
-        setConsoleOutput(prev => [...prev, `[${timestamp}] Redirecting to investigation console...`])
-        setTimeout(() => navigate({ to: '/investigations/new' }), 800)
-        break
-
-      case '/deploy':
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] ENVIRONMENT REPOSITORIES:`,
-          ...services.map(s => `  - ${s.name} [ENV: ${s.environment}] [OWNER: ${s.owner}]`)
-        ])
-        break
-
-      default:
-        // Natural language query -> redirect to AI Copilot Chat
-        setConsoleOutput(prev => [
-          ...prev,
-          `[${timestamp}] Routing search query to AI Copilot reasoning engine...`
-        ])
-        setTimeout(() => {
-          navigate({ 
-            to: '/chat',
-            // pass command as URL search param
-            search: () => ({ q: cmd })
-          })
-        }, 1000)
-        break
-    }
-  }
-
-  // Slice last 5 investigations
-  const recentInvestigations = investigations.slice(0, 5)
+  const traces = tracesData?.traces ?? []
+  const errorCount = traces.filter(t => t.status === 'error').length
+  const avgLatency = traces.length ? Math.round(traces.reduce((s, t) => s + t.duration_ms, 0) / traces.length) : 0
 
   return (
-    <div className='space-y-6 font-mono text-xs text-foreground'>
-      {/* Page Title Header */}
-      <div className='border-b border-border/60 pb-4 mb-4'>
-        <div className='flex items-center space-x-2 text-primary font-bold mb-1 text-sm'>
-          <Terminal className='h-4 w-4' />
-          <span>SRE INCIDENT OPERATIONS CENTER</span>
+    <div className='space-y-4 font-mono text-xs text-foreground'>
+      {/* Header */}
+      <div className='border-b border-border/60 pb-3'>
+        <div className='flex items-center space-x-2 text-primary font-bold text-sm'>
+          <LayoutDashboard className='h-4 w-4' />
+          <span>AI OPS OPERATIONS CENTER</span>
         </div>
-        <p className='text-muted-foreground text-[10px]'>
-          Active session: Console input acts as main driver. Type command or ask questions to route to AI Copilot.
+        <p className='text-muted-foreground text-[10px] mt-1'>
+          LLM Observability powered by Datadog MCP + Amazon Bedrock AI Summarization
         </p>
       </div>
 
-      {/* Main Terminal Shell Grid */}
-      <div className='grid gap-6 lg:grid-cols-12'>
-        {/* Left Column: Command prompt and console log output */}
-        <div className='lg:col-span-7 flex flex-col h-full'>
-          <TerminalInput onCommand={handleCommand} />
+      {/* LLM Sample Dashboard Section */}
+      <TerminalPanel
+        title={dashboard?.title || 'LLM SAMPLE DASHBOARD'}
+        collapsible
+        rightElement={
+          dashboard?.url ? (
+            <a href={dashboard.url} target='_blank' rel='noopener noreferrer'
+              className='px-2 py-0.5 border border-primary/45 bg-[#161616] text-[#58A6FF] hover:border-primary hover:text-primary text-[9px] font-bold flex items-center space-x-1 cursor-pointer'>
+              <ExternalLink className='h-3 w-3' /><span>OPEN IN DATADOG</span>
+            </a>
+          ) : undefined
+        }
+      >
+        {dashLoading ? (
+          <div className='py-8 text-center text-muted-foreground animate-pulse'>
+            <BarChart3 className='h-6 w-6 mx-auto mb-2 text-primary/50' />
+            Fetching LLM Sample Dashboard from Datadog MCP...
+          </div>
+        ) : dashError ? (
+          <div className='py-6 text-center text-[#FF5555]'>
+            <AlertTriangle className='h-5 w-5 mx-auto mb-2' />
+            Failed to load dashboard. Check Datadog credentials.
+          </div>
+        ) : dashboard ? (
+          <div className='space-y-4'>
+            {dashboard.description && (
+              <p className='text-[10px] text-muted-foreground'>{dashboard.description}</p>
+            )}
 
-          <TerminalPanel title='AI Diagnostic Console Output' className='flex-grow h-[350px] flex flex-col'>
-            <div className='flex-grow overflow-y-auto font-mono text-[10px] text-[#00FF88] space-y-1.5 whitespace-pre-wrap select-text max-h-[320px]'>
-              {consoleOutput.length === 0 ? (
-                <span className='text-muted-foreground'>Console log buffer empty. Type commands above.</span>
-              ) : (
-                <>
-                  {consoleOutput.map((line, idx) => (
-                    <div key={idx} className={line.startsWith('>') ? 'text-primary font-bold' : ''}>
-                      {line}
+            {/* Widget Groups Summary */}
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
+              {dashboard.groups.map((group) => {
+                const groupWidgets = dashboard.widgets.filter(w => w.group === group)
+                return (
+                  <div key={group} className='border border-border/40 bg-[#090909] p-2'>
+                    <div className='text-[9px] text-primary font-bold uppercase truncate'>{group}</div>
+                    <div className='text-[10px] text-muted-foreground mt-1'>{groupWidgets.length} widgets</div>
+                    <div className='mt-1 space-y-0.5'>
+                      {groupWidgets.slice(0, 3).map(w => (
+                        <div key={w.id} className='text-[9px] text-foreground/70 truncate'>• {w.title}</div>
+                      ))}
+                      {groupWidgets.length > 3 && (
+                        <div className='text-[9px] text-muted-foreground/50'>+{groupWidgets.length - 3} more</div>
+                      )}
                     </div>
-                  ))}
-                  <div ref={consoleEndRef} />
-                </>
-              )}
+                  </div>
+                )
+              })}
             </div>
-          </TerminalPanel>
-        </div>
 
-        {/* Right Column: Telemetry Monitors */}
-        <div className='lg:col-span-5 space-y-4'>
-          {/* dependency diagram */}
-          <TerminalPanel title='System Dependency Graph' collapsible>
-            <TraceViewer />
-          </TerminalPanel>
-
-          {/* ASCII Metrics panel */}
-          <TerminalPanel title='Telemetry metrics load' collapsible>
-            <div className='grid grid-cols-2 gap-3'>
-              <TerminalChart data={cpuData} height={5} label='CPU Utilization' />
-              <TerminalChart data={memData} height={5} label='Memory Footprint' />
-            </div>
-          </TerminalPanel>
-        </div>
-      </div>
-
-      {/* Bottom Row: Logs Monitor and Incident Registry */}
-      <div className='grid gap-6 lg:grid-cols-12'>
-        {/* Live log stream */}
-        <div className='lg:col-span-7'>
-          <TerminalPanel title='Telemetry Log Stream [Live tail]' collapsible>
-            <LogViewer />
-          </TerminalPanel>
-        </div>
-
-        {/* Active Incident Registry Table */}
-        <div className='lg:col-span-5'>
-          <TerminalPanel 
-            title='Active incident registries' 
-            collapsible
-            rightElement={
-              <Button asChild size='sm' className='h-5 text-[10px] border-primary/40' variant='outline'>
-                <Link to='/investigations/new'>Trigger RCA</Link>
-              </Button>
-            }
-          >
-            {loadingInvestigations ? (
-              <div className='space-y-2 py-4'>
-                <div className='h-8 w-full animate-pulse bg-muted/20' />
-                <div className='h-8 w-full animate-pulse bg-muted/20' />
-              </div>
-            ) : recentInvestigations.length === 0 ? (
-              <div className='text-center py-6 text-muted-foreground'>
-                No incidents on record. System healthy.
-              </div>
-            ) : (
-              <div className='overflow-x-auto'>
-                <Table>
-                  <TableHeader className='bg-muted/10 border-b border-border/40'>
-                    <TableRow className='hover:bg-transparent border-none'>
-                      <TableHead className='h-8 text-[9px] font-bold text-muted-foreground uppercase'>Incident ID</TableHead>
-                      <TableHead className='h-8 text-[9px] font-bold text-muted-foreground uppercase'>Status</TableHead>
-                      <TableHead className='h-8 text-[9px] font-bold text-muted-foreground uppercase text-right'>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recentInvestigations.map((inv) => (
-                      <TableRow key={inv.id} className='hover:bg-muted/10 border-b border-border/20 last:border-none'>
-                        <TableCell className='py-2 font-medium max-w-[150px] truncate text-[10px]'>
-                          {inv.title}
-                        </TableCell>
-                        <TableCell className='py-2'>
-                          <span className={`px-1.5 py-0.5 border text-[9px] font-bold ${
-                            inv.status === 'resolved' 
-                              ? 'text-[#00FF88] border-[#00FF88]/20 bg-[#00FF88]/5' 
-                              : 'text-[#FFB020] border-[#FFB020]/20 bg-[#FFB020]/5'
-                          }`}>
-                            {inv.status.toUpperCase()}
-                          </span>
-                        </TableCell>
-                        <TableCell className='py-2 text-right'>
-                          <Button asChild size='sm' variant='outline' className='h-5 text-[9px] border-border/60 hover:bg-primary/20 hover:text-primary'>
-                            <Link to='/investigations/$id' params={{ id: inv.id }}>
-                              <Eye className='h-3 w-3 mr-1' />
-                              RCA
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+            {/* AI Summary from Bedrock */}
+            {dashboard.ai_summary && (
+              <div className='border border-primary/30 bg-primary/5 p-3 space-y-2'>
+                <div className='flex items-center gap-1.5 text-[10px] text-primary font-bold uppercase'>
+                  <Brain className='h-3.5 w-3.5' />
+                  AI ANALYSIS (Amazon Bedrock)
+                </div>
+                <div className='text-[10px] text-foreground/90 leading-relaxed whitespace-pre-wrap'>
+                  {dashboard.ai_summary}
+                </div>
               </div>
             )}
-          </TerminalPanel>
+          </div>
+        ) : null}
+      </TerminalPanel>
+
+      {/* Traces Section */}
+      <div className='border-t border-border/40 pt-4'>
+        <div className='flex items-center space-x-2 text-primary font-bold text-xs mb-3'>
+          <Terminal className='h-3.5 w-3.5' />
+          <span>LIVE TRACES</span>
         </div>
+
+        <div className='flex gap-2 items-center mb-3'>
+          <div className='relative flex-1'>
+            <Search className='absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground' />
+            <Input value={query} onChange={e => setQuery(e.target.value)}
+              placeholder='service:* | resource:api/users | status:error'
+              className='h-7 pl-7 text-xs font-mono bg-[#111111] border-border/60' />
+          </div>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className='h-7 text-xs font-mono bg-[#111111] border-border/60 w-[100px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='now-15m'>15m</SelectItem>
+              <SelectItem value='now-1h'>1h</SelectItem>
+              <SelectItem value='now-6h'>6h</SelectItem>
+              <SelectItem value='now-24h'>24h</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className='flex gap-4 text-[10px] border border-border/40 bg-[#111111] px-3 py-1.5 mb-3'>
+          <span className='text-muted-foreground'>TRACES: <span className='text-[#00FF88] font-bold'>{traces.length}</span></span>
+          <span className='text-muted-foreground'>ERRORS: <span className={errorCount > 0 ? 'text-red-400 font-bold' : 'text-[#00FF88] font-bold'}>{errorCount}</span></span>
+          <span className='text-muted-foreground'>AVG LATENCY: <span className='text-[#00FF88] font-bold'>{avgLatency}ms</span></span>
+        </div>
+
+        <TerminalPanel title='Trace Results'>
+          {tracesLoading ? (
+            <div className='text-muted-foreground py-4 animate-pulse'>Querying Datadog MCP...</div>
+          ) : traces.length === 0 ? (
+            <div className='text-muted-foreground py-4 text-center'>No traces found.</div>
+          ) : (
+            <div className='space-y-px max-h-[220px] overflow-y-auto'>
+              {traces.map(t => (
+                <div key={t.trace_id}
+                  onClick={() => setSelectedTraceId(t.trace_id === selectedTraceId ? '' : t.trace_id)}
+                  className={`flex items-center gap-3 px-2 py-1 cursor-pointer hover:bg-muted/20 border-l-2 ${
+                    t.status === 'error' ? 'border-l-red-400' : 'border-l-[#00FF88]/40'
+                  } ${selectedTraceId === t.trace_id ? 'bg-muted/20' : ''}`}>
+                  {t.status === 'error' ? <AlertTriangle className='h-3 w-3 text-red-400 shrink-0' /> : <Play className='h-3 w-3 text-[#00FF88] shrink-0' />}
+                  <span className='text-muted-foreground w-[60px] shrink-0 truncate'>{t.trace_id.slice(0, 8)}</span>
+                  <span className='text-primary w-[80px] shrink-0 truncate'>{t.service}</span>
+                  <span className='flex-1 truncate'>{t.operation}</span>
+                  <span className={`w-[50px] text-right shrink-0 ${t.duration_ms > 500 ? 'text-[#FFB020]' : 'text-muted-foreground'}`}>{t.duration_ms}ms</span>
+                  <span className='text-muted-foreground w-[55px] text-right shrink-0'>
+                    {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </TerminalPanel>
       </div>
+
+      {/* Span Waterfall */}
+      {selectedTraceId && traceDetail && (
+        <TerminalPanel title={`Spans — ${selectedTraceId.slice(0, 12)}`} collapsible>
+          <div className='space-y-px max-h-[180px] overflow-y-auto'>
+            {traceDetail.spans.map(span => {
+              const maxDur = Math.max(...traceDetail.spans.map(s => s.duration_ms), 1)
+              const widthPct = Math.max((span.duration_ms / maxDur) * 100, 2)
+              return (
+                <div key={span.span_id} className='flex items-center gap-2 py-0.5'>
+                  <span className='w-[90px] shrink-0 truncate text-muted-foreground'>{span.service}</span>
+                  <span className='w-[100px] shrink-0 truncate'>{span.name}</span>
+                  <div className='flex-1 h-3 bg-muted/10 relative'>
+                    <div className={`h-full ${span.status === 'error' ? 'bg-red-400/60' : 'bg-[#00FF88]/30'}`}
+                      style={{ width: `${widthPct}%` }} />
+                  </div>
+                  <span className='w-[45px] text-right text-muted-foreground shrink-0'>{span.duration_ms}ms</span>
+                </div>
+              )
+            })}
+          </div>
+          {traceDetail.deep_link_url && (
+            <a href={traceDetail.deep_link_url} target='_blank' rel='noopener' className='inline-flex items-center gap-1 mt-2 text-primary hover:underline text-[10px]'>
+              <ExternalLink className='h-3 w-3' /> View in Datadog
+            </a>
+          )}
+        </TerminalPanel>
+      )}
     </div>
   )
 }
