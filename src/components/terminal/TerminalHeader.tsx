@@ -34,6 +34,7 @@ export function TerminalHeader() {
     { label: '03. Investigations', path: '/investigations' },
     { label: '04. AI Copilot', path: '/chat' },
     { label: '05. Configuration', path: '/settings' },
+    { label: '06. Traces', path: '/traces' },
   ]
 
   return (

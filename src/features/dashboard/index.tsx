@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import { useServices } from '@/hooks/use-services'
 import { useInvestigations } from '@/hooks/use-investigations'
 import { TerminalInput } from '@/components/terminal/TerminalInput'
@@ -24,18 +26,27 @@ export function Dashboard() {
     consoleEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [consoleOutput])
 
-  // CPU & Memory mock data for ASCII charts
+  // CPU & Memory metric states
   const [cpuData, setCpuData] = useState<number[]>([45, 52, 58, 62, 55, 48, 67, 85, 78, 83, 89, 92])
   const [memData, setMemData] = useState<number[]>([68, 68, 69, 70, 71, 70, 72, 74, 75, 74, 75, 76])
 
-  // Periodic metric updates
+  // Fetch real metrics from Datadog MCP
+  const { data: metricsData } = useQuery({
+    queryKey: ['system_metrics'],
+    queryFn: async () => {
+      const resp = await api.get('/test/metrics')
+      return resp.data
+    },
+    refetchInterval: 5000,
+  })
+
+  // Sync state with fetched metrics
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCpuData(prev => [...prev.slice(1), Math.floor(Math.random() * 40) + 50])
-      setMemData(prev => [...prev.slice(1), Math.floor(Math.random() * 5) + 72])
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
+    if (metricsData) {
+      setCpuData(metricsData.cpu)
+      setMemData(metricsData.memory)
+    }
+  }, [metricsData])
 
   // Boot sequence simulation on mount
   useEffect(() => {

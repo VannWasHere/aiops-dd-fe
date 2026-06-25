@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ClerkRouteRouteImport } from './routes/clerk/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedTracesRouteImport } from './routes/_authenticated/traces'
 import { Route as AuthenticatedServicesRouteImport } from './routes/_authenticated/services'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
@@ -57,6 +58,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTracesRoute = AuthenticatedTracesRouteImport.update({
+  id: '/traces',
+  path: '/traces',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedServicesRoute = AuthenticatedServicesRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/chat': typeof AuthenticatedChatRoute
   '/services': typeof AuthenticatedServicesRoute
+  '/traces': typeof AuthenticatedTracesRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/investigations/$id': typeof AuthenticatedInvestigationsIdRoute
   '/investigations/new': typeof AuthenticatedInvestigationsNewRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/chat': typeof AuthenticatedChatRoute
   '/services': typeof AuthenticatedServicesRoute
+  '/traces': typeof AuthenticatedTracesRoute
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/investigations/$id': typeof AuthenticatedInvestigationsIdRoute
@@ -316,6 +324,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/services': typeof AuthenticatedServicesRoute
+  '/_authenticated/traces': typeof AuthenticatedTracesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/investigations/$id': typeof AuthenticatedInvestigationsIdRoute
@@ -353,6 +362,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat'
     | '/services'
+    | '/traces'
     | '/errors/$error'
     | '/investigations/$id'
     | '/investigations/new'
@@ -385,6 +395,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/chat'
     | '/services'
+    | '/traces'
     | '/'
     | '/errors/$error'
     | '/investigations/$id'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/chat'
     | '/_authenticated/services'
+    | '/_authenticated/traces'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
     | '/_authenticated/investigations/$id'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/traces': {
+      id: '/_authenticated/traces'
+      path: '/traces'
+      fullPath: '/traces'
+      preLoaderRoute: typeof AuthenticatedTracesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/services': {
@@ -734,6 +753,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedServicesRoute: typeof AuthenticatedServicesRoute
+  AuthenticatedTracesRoute: typeof AuthenticatedTracesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvestigationsIdRoute: typeof AuthenticatedInvestigationsIdRoute
@@ -750,6 +770,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedServicesRoute: AuthenticatedServicesRoute,
+  AuthenticatedTracesRoute: AuthenticatedTracesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvestigationsIdRoute: AuthenticatedInvestigationsIdRoute,
