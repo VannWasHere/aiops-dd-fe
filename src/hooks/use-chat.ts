@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 
+const EMPTY_ARRAY: any[] = []
+
 export interface ChatSession {
   id: string
   title: string
@@ -37,7 +39,7 @@ export function useChatSessions() {
   })
 
   return {
-    sessions: sessionsQuery.data ?? [],
+    sessions: sessionsQuery.data ?? EMPTY_ARRAY,
     isLoading: sessionsQuery.isLoading,
     isError: sessionsQuery.isError,
     createSession: createSessionMutation.mutateAsync,
@@ -68,7 +70,7 @@ export function useChatMessages(sessionId: string) {
   })
 
   return {
-    messages: messagesQuery.data ?? [],
+    messages: messagesQuery.data ?? EMPTY_ARRAY,
     isLoading: messagesQuery.isLoading,
     sendMessage: sendMessageMutation.mutateAsync,
     isSending: sendMessageMutation.isPending,

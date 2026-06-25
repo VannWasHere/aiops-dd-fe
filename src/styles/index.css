@@ -7,6 +7,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    font-family: var(--font-mono), monospace;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
@@ -14,7 +15,8 @@
     @apply overflow-x-hidden;
   }
   body {
-    @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;
+    @apply min-h-svh w-full bg-background text-foreground;
+    font-family: var(--font-mono), monospace;
   }
 
   /* Override Radix scroll locking for sticky headers */
@@ -26,6 +28,33 @@
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
+  }
+
+  /* Blinking cursor for command line input */
+  .terminal-cursor::after {
+    content: '█';
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    from, to { color: transparent }
+    50% { color: var(--primary) }
+  }
+
+  /* Scanline screen CRT effect */
+  .terminal-scanlines {
+    position: relative;
+    overflow: hidden;
+  }
+  .terminal-scanlines::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 9999;
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
   }
 
   /* Prevent focus zoom on mobile devices */
